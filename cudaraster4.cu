@@ -11,7 +11,6 @@
 
 using namespace std;
 
-#define BLOCK_SIZE 1024
 
 __global__ void gpu_internalpoints(Point* po, int num_pix, Point* p, int num_vertices)         //(d_waits,d_Polypoints,Polycount,d_ips)
 {
@@ -33,6 +32,14 @@ __global__ void gpu_internalpoints(Point* po, int num_pix, Point* p, int num_ver
 			po[Pointindex].x=0;
 			po[Pointindex].y=0;
 		}
+    }
+}
+
+inline void check_execution() {
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("%s\n",cudaGetErrorString(err));
+
     }
 }
 
@@ -111,7 +118,11 @@ void writewkt(vector<Point> ips){
     }
 }
 
-int main(){
+int main(int argc, char **argv){
+    int BLOCK_SIZE = 1024;
+    if (argc>1) {
+        BLOCK_SIZE = atoi(argv[1]);
+    }
     string filename="bigpolygon.wkt";
     string wkt=readhang(filename);
     vector<string> rawpoints;
@@ -137,7 +148,7 @@ int main(){
     double s=MBR->area();
     cout<<s<<endl;
 
-    int num_pixel=20000;
+    int num_pixel=100000;
     MyRaster raster(&polygon,num_pixel);
     raster.init_pixels();
 
@@ -163,6 +174,7 @@ int main(){
     SpendTime *time=new SpendTime();
     gpu_internalpoints << <gridlength, BLOCK_SIZE >> > (d_waits, waitscount, d_Polypoints, Polycount);
     cudaDeviceSynchronize();
+    check_execution();
     cout<<"Gpu:";
     delete time;
     cudaMemcpy(waits, d_waits, sizeof(Point) * waitscount, cudaMemcpyDeviceToHost);
